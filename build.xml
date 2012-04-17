@@ -24,11 +24,11 @@
     <!-- merge the pages properties -->
     <var name="page-files" value="${file.pages}, ${file.pages.default.include}"/>
 
-    <!-- Test for Ant Version Delete this task and all instances of overwrite='no' if you can't upgrade to 1.8.2-->
-    <fail message="All features of the build script require Ant version 1.8.2. Please upgrade to 1.8.2 or remove all instances of 'overwrite=no' (and this fail task) from the build script to continue">
+    <!-- Test for Ant Version Delete this task and all instances of overwrite='no' if you can't upgrade to latest-->
+    <fail message="All features of the build script require Ant version 1.8.2 or greater. Please upgrade to the latest version or remove all instances of 'overwrite=no' (and this fail task) from the build script to continue">
         <condition>
             <not>
-                <contains string="${ant.version}" substring="1.8.2"/>
+                 <antversion atleast="1.8.2"/>
             </not>
         </condition>
     </fail>
@@ -248,7 +248,6 @@
                      -usemin,
                      -js.all.minify,
                      -js.main.concat,
-                   -js.mylibs.concat,
                    -js.scripts.concat,
                    -css,
                    -manifest,
@@ -259,7 +258,6 @@
                    -usemin,
                    -js.all.minify,
                    -js.main.concat,
-                   -js.mylibs.concat,
                    -js.scripts.concat,
                    -css,
                    -manifest,
@@ -275,7 +273,6 @@
                    -usemin,
                    -js.all.minify,
                    -js.main.concat,
-                   -js.mylibs.concat,
                    -js.scripts.concat,
                    -css,
                    -manifest,
@@ -287,7 +284,6 @@
                    -usemin,
                    -js.all.minify,
                    -js.main.concat,
-                   -js.mylibs.concat,
                    -js.scripts.concat,
                    -css,
                    -manifest,
@@ -306,7 +302,6 @@
                    -usemin,
                    -js.all.minify,
                    -js.main.concat,
-                   -js.mylibs.concat,
                    -js.scripts.concat,
                    -css,
                    -manifest,
@@ -320,7 +315,6 @@
                    -usemin,
                    -js.all.minify,
                    -js.main.concat,
-                   -js.mylibs.concat,
                    -js.scripts.concat,
                    -css,
                    -manifest,
@@ -341,7 +335,6 @@
                    -usemin,
                    -js.all.minify,
                    -js.main.concat,
-                   -js.mylibs.concat,
                    -js.scripts.concat,
                    -css,
                    -manifest,
@@ -355,7 +348,6 @@
                    -usemin,
                    -js.all.minify,
                    -js.main.concat,
-                   -js.mylibs.concat,
                    -js.scripts.concat,
                    -css,
                    -manifest,
@@ -376,7 +368,6 @@
                    -usemin,
                    -js.all.minify,
                    -js.main.concat,
-                   -js.mylibs.concat,
                    -js.scripts.concat,
                    -css,
                    -manifest,
@@ -390,7 +381,6 @@
                    -usemin,
                    -js.all.minify,
                    -js.main.concat,
-                   -js.mylibs.concat,
                    -js.scripts.concat,
                    -css,
                    -manifest,
@@ -496,40 +486,31 @@
 
   <!-- JAVASCRIPT -->
   <target name="-js.main.concat" depends="-js.all.minify" description="(PRIVATE) Concatenates the JS files in dir.js">
-      <echo message="Concatenating Main JS scripts..."/>
-      <!-- overwrite=no here means not to overwrite if the target is newer than the sources -->
-      <concat destfile="./${dir.intermediate}/${dir.js}/scripts-concat.js" overwrite="no">
-          <fileset dir="./${dir.intermediate}/">
-              <include name="${dir.js}/plugins.js"/>
-              <include name="${dir.js}/${file.root.script}"/>
-          </fileset>
-      </concat>
-  </target>
+      <filelist id="file.root" dir="${dir.source}" files="${file.root.page}"/>
+      <echo message="Concatenating Main JS scripts based on ${file.root.page}..."/>
 
-  <target name="-js.mylibs.concat" depends="-js.all.minify" description="(PRIVATE) Concatenates the JS files in dir.js.mylibs">
-      <echo message="Concatenating JS libraries"/>
-      <echo message="Concatenating all files in ./${dir.intermediate}/${dir.js}/ that don't fit the H5BL folder structure" />
-      <echo message="The following will be excluded: ${file.js.bypass}, ${dir.js.libs}/*, ${dir.js.modules}/*,  ${file.root.script}, scripts-concat.js and plugins.js" />
-      <concat destfile="./${dir.intermediate}/${dir.js}/otherscripts-concat.js" overwrite="no">
-        <fileset dir="./${dir.intermediate}/${dir.js}" excludes="${file.js.bypass}, ${slug.libs}/*, ${slug.modules}/*">
-          <exclude name="${file.root.script}"/>
-          <exclude name="plugins.js"/>
-          <exclude name="scripts-concat.js"/>
-        </fileset>
-      </concat>
+      <apply executable="java" parallel="false" 
+          outputproperty="scripts.ordered">
+          <arg value="-cp"/>
+          <arg value="./${dir.build.tools}"/>
+          <arg value="ScriptsToConcat"/>
+          <first>
+              <filelist refid="file.root"/>
+          </first>
+      </apply>
 
-  </target>
+      <filelist id="scripts.toconcat" dir="./${dir.intermediate}/" files="${scripts.ordered}">
+          <file name="${dir.js}/plugins.js"/>
+      </filelist>
 
-
-  <target name="-js.scripts.concat" depends="-js.main.concat,-js.mylibs.concat" if="build.concat.scripts">
-      <echo message="Concatenating library file with main script file"/>
       <!-- overwrite=no here means not to overwrite if the target is newer than the sources -->
       <concat destfile="./${dir.intermediate}/${dir.js}/scripts-concat.min.js" overwrite="no">
-        <fileset dir="./${dir.intermediate}/${dir.js}/">
-              <include name="scripts-concat.js"/>
-              <include name="otherscripts-concat.js"/>
-          </fileset>
+          <filelist refid="scripts.toconcat"/>
       </concat>
+  </target>
+
+  <target name="-js.scripts.concat" depends="-js.main.concat" if="build.concat.scripts">
+      <echo message="Concatenating library file with main script file"/>
 
       <checksum file="${dir.intermediate}/${dir.js}/scripts-concat.min.js" algorithm="sha" property="scripts.fullsha" />
       <propertyregex property="scripts.sha" input="${scripts.fullsha}" regexp=".{${hash.length}}" select="\0" />
@@ -554,7 +535,7 @@
           <property name="modules.js.dir" value="${dir.js}/${modules.sha}" />
           <move file="${dir.publish}/${dir.js.modules}/" tofile="${dir.publish}/${dir.js}/${modules.sha}/" />
           <copy todir="${dir.publish}/${dir.js}/${modules.sha}/" >
-          	<fileset dir="${dir.intermediate}/${dir.js.modules}" includes="**/**.js" excludes="_all.js" />
+            <fileset dir="${dir.intermediate}/${dir.js.modules}" includes="**/**.js" excludes="_all.js" />
           </copy>
         </then>
       </if>
@@ -681,6 +662,8 @@
           <fileset dir="${dir.intermediate}" includes="${page-files}"/>
       </replaceregexp>
 
+      <foreach list="${file.stylesheets}" param="css_file" target="-css-remove-concatenated-stylesheets" />
+
   </target>
 
 
@@ -765,7 +748,7 @@
             <fileset dir="${dir.intermediate}/" includes="${page-files}"/>
             <arg value="-jar"/>
             <arg path="${dir.build.tools}/${tool.htmlcompressor}"/>
-            <arg line="${tool.htmlcompressor.opts} ${tool.htmlcompressor.opts.extra}"/>
+            <arg line="${tool.htmlcompressor.opts} ${tool.htmlcompressor.javascript} ${tool.htmlcompressor.opts.extra}"/>
             <srcfile/>
             <arg value="-o"/>
             <mapper type="glob" from="*" to="${basedir}/${dir.publish}/*"/>
@@ -823,7 +806,7 @@
 
     <target name="-css-remove-concatenated-stylesheets">
             <echo>Removing ${css_file} from html</echo>
-            <replaceregexp match="&lt;link.+href=&quot;.*${css_file}&quot;.*&gt;" replace="  ">
+            <replaceregexp match="&lt;link.+href=&quot;.*${css_file}&quot;.*&gt;" replace="  " byline="true">
                 <fileset dir="${dir.intermediate}" includes="${page-files}"/>
             </replaceregexp>
     </target>
@@ -967,7 +950,6 @@
             <mapper type="glob" from="*.css" to="${basedir}/${dir.publish}/${dir.css}/*.css"/>
             <targetfile/>
         </apply>
-        <foreach list="${file.stylesheets}" param="css_file" target="-css-remove-concatenated-stylesheets" />
     </target>
 
 
@@ -980,6 +962,15 @@
 
         <echo message="First, we run optipng on the .png files..."/>
 
+        <if>
+            <equals arg1="${images.strip.metadata}" arg2="true"/>
+            <then>
+                <var name="strip-meta-tags" value="-strip all"/>
+            </then>
+            <else>
+                <var name="strip-meta-tags" value=""/>
+            </else>
+        </if>
         <!-- osfamily=unix is actually true on OS X as well -->
         <!-- On *nix's and OS X, check for optipng and give a helpful message if it's not installed -->
         <if>
@@ -998,8 +989,12 @@
                     <fileset dir="./${dir.source}/${dir.images}/" includes="**/*.png"  excludes="${images.bypass}, ${images.default.bypass}"/>
                     <arg value="-quiet"/>
                     <arg value="-o7"/>
-                    <arg value="-out"/>
-                    <targetfile/>
+                    <!--
+                       Temporarily fixes #39
+                       <arg value="${strip-meta-tags}"/>
+                    -->
+                    <arg value="-out"/>	
+		    <targetfile/>
                     <srcfile/>
                     <mapper type="identity"/>
                 </apply>
@@ -1021,10 +1016,11 @@
                             <include name="**/*.png"/>
                         </fileset>
                     </delete>
-                    <apply executable="${basedir}/${dir.build.tools}/optipng-0.6.4-exe/optipng.exe" dest="./${dir.publish}/${dir.images}/" osfamily="windows">
+                    <apply executable="${basedir}/${dir.build.tools}/optipng-0.7-win32/optipng.exe" dest="./${dir.publish}/${dir.images}/" osfamily="windows">
                         <fileset dir="./${dir.source}/${dir.images}/" includes="**/*.png"  excludes="${images.bypass}, ${images.default.bypass}"/>
                         <arg value="-quiet"/>
                         <arg value="-o7"/>
+		        <arg value="${strip-meta-tags}"/>
                         <arg value="-out"/>
                         <targetfile/>
                         <srcfile/>
@@ -1095,7 +1091,7 @@
 
 
 	<!-- Import project.xml (put any custom build targets in this file so that they aren't overwritten when build.xml is updated) -->
-	<!-- See: https://github.com/h5bp/html5-boilerplate/issues/704 -->
+	<!-- See: https://github.com/h5bp/html5-boilerplate/issues/704 for discussion of the original pull request-->
 	<import file="./project.xml" />
 
 </project>
